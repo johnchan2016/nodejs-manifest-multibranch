@@ -1,0 +1,393 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description:  This template deploys a VPC, with a pair of public and private subnets spread
+  across two Availability Zones. It deploys an internet gateway, with a default
+  route on the public subnets.
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - uat
+      - prd
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.80.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.80.10.0/24
+    
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.80.11.0/24    
+
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.80.20.0/24
+
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.80.21.0/24
+    
+
+# naming convention Ref: https://cjrequena.com/2020-06-05/aws-naming-conventions-en
+# EKS setup Ref: https://en.sokube.ch/post/aws-kubernetes-aws-elastic-kubernetes-service-eks-1
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "vpc-${AWS::StackName}"
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+        - Key: requestedby
+          Value: johnchan@swireproperties.com
+        - Key: accountable
+          Value: johnchan@swireproperties.com          
+        - Key: requestid
+          Value: n/a
+        - Key: project
+          Value: vpc-test
+        - Key: businessunit
+          Value: information technology
+        - Key: classification
+          Value: cat-2
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "igw-${AWS::StackName}"
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+        - Key: requestedby
+          Value: johnchan@swireproperties.com
+        - Key: accountable
+          Value: johnchan@swireproperties.com          
+        - Key: requestid
+          Value: n/a
+        - Key: project
+          Value: vpc-test
+        - Key: businessunit
+          Value: information technology
+        - Key: classification
+          Value: cat-2
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC     
+      
+
+  #====================================
+  # Subnets
+  #====================================  
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["subnet", !Select [ 0, !GetAZs '' ], "public", !Ref EnvironmentName, !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+        - Key: requestedby
+          Value: johnchan@swireproperties.com
+        - Key: accountable
+          Value: johnchan@swireproperties.com          
+        - Key: requestid
+          Value: n/a
+        - Key: project
+          Value: vpc-test
+        - Key: businessunit
+          Value: information technology
+        - Key: classification
+          Value: cat-2
+          
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["subnet", !Select [ 1, !GetAZs '' ], "public", !Ref EnvironmentName, !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+        - Key: requestedby
+          Value: johnchan@swireproperties.com
+        - Key: accountable
+          Value: johnchan@swireproperties.com          
+        - Key: requestid
+          Value: n/a
+        - Key: project
+          Value: vpc-test
+        - Key: businessunit
+          Value: information technology
+        - Key: classification
+          Value: cat-2 
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["subnet", !Select [ 0, !GetAZs '' ], "private", !Ref EnvironmentName, !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+        - Key: requestedby
+          Value: johnchan@swireproperties.com
+        - Key: accountable
+          Value: johnchan@swireproperties.com          
+        - Key: requestid
+          Value: n/a
+        - Key: project
+          Value: vpc-test
+        - Key: businessunit
+          Value: information technology
+        - Key: classification
+          Value: cat-2 
+    
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["subnet", !Select [ 1, !GetAZs '' ], "private", !Ref EnvironmentName, !Sub "${AWS::StackName}"] ]
+        - Key: EnvironmentName
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+        - Key: requestedby
+          Value: johnchan@swireproperties.com
+        - Key: accountable
+          Value: johnchan@swireproperties.com          
+        - Key: requestid
+          Value: n/a
+        - Key: project
+          Value: vpc-test
+        - Key: businessunit
+          Value: information technology
+        - Key: classification
+          Value: cat-2 
+      
+  #====================================
+  # EIP & NAT Gateway
+  #====================================
+  EIP:
+    DependsOn: VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  NatGateway1:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt 'EIP.AllocationId'
+      SubnetId: !Ref PublicSubnet1
+
+
+  #====================================
+  # Route tables
+  #====================================  
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["rtb", !GetAtt PublicSubnet1.AvailabilityZone, "public", !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+        - Key: requestedby
+          Value: johnchan@swireproperties.com
+        - Key: accountable
+          Value: johnchan@swireproperties.com          
+        - Key: requestid
+          Value: n/a
+        - Key: project
+          Value: vpc-test
+        - Key: businessunit
+          Value: information technology
+        - Key: classification
+          Value: cat-2           
+
+  DefaultPublicRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+      
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2    
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["rtb", !GetAtt PrivateSubnet1.AvailabilityZone, "private", !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+        - Key: requestedby
+          Value: johnchan@swireproperties.com
+        - Key: accountable
+          Value: johnchan@swireproperties.com          
+        - Key: requestid
+          Value: n/a
+        - Key: project
+          Value: vpc-test
+        - Key: businessunit
+          Value: information technology
+        - Key: classification
+          Value: cat-2
+
+  DefaultPrivateRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1      
+      
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet2
+      
+      
+  #====================================
+  # Security groups
+  #====================================  
+  VPCIngressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join [ "-", ["SecurityGroup", !Sub "${AWS::StackName}"] ]
+      GroupDescription: "Security group with allow port 80,443,22 ingress rule"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0          
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["sg", !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com          
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Join [ "-", ["VPC", !Sub "${AWS::StackName}"] ]
+
+  PublicSubnet1:
+    Description: A reference to the public subnet in the 1st Availability Zone
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Join [ "-", ["PublicSubnet1", !Sub "${AWS::StackName}"] ] 
+
+  PublicSubnet2:
+    Description: A reference to the public subnet in the 2nd Availability Zone
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Join [ "-", ["PublicSubnet2", !Sub "${AWS::StackName}"] ] 
+
+  PrivateSubnet1:
+    Description: A reference to the private subnet in the 1st Availability Zone
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Join [ "-", ["PrivateSubnet1", !Sub "${AWS::StackName}"] ] 
+
+  PrivateSubnet2:
+    Description: A reference to the private subnet in the 2nd Availability Zone
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Join [ "-", ["PrivateSubnet2", !Sub "${AWS::StackName}"] ]   
+    
+  PublicSubnet1AZ:
+    Description: A reference to the public subnet in the 1st Availability Zone
+    Value: !GetAtt PublicSubnet1.AvailabilityZone
+    Export:
+      Name: !Join [ "-", ["PublicSubnet1AZ", !Sub "${AWS::StackName}"] ] 
+    
+  PrivateSubnet1AZ:
+    Description: A reference to the private subnet in the 1st Availability Zone
+    Value: !GetAtt PrivateSubnet1.AvailabilityZone
+    Export:
+      Name: !Join [ "-", ["PrivateSubnet1AZ", !Sub "${AWS::StackName}"] ] 
+
+  VPCIngressSecurityGroup:
+    Description: Security group with allow port 80,443,22 ingress rule
+    Value: !Join [ "-", ["VPCIngressSecurityGroup", !Sub "${AWS::StackName}"] ] 

@@ -1,0 +1,438 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description:  This template deploys a VPC, with a pair of public and private subnets spread
+  across two Availability Zones. It deploys with bastion-host
+
+Parameters:
+  EnvironmentName:
+    Description: An environment name that is prefixed to resource names
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - uat
+      - prd     
+
+  VpcCIDR:
+    Description: Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.80.0.0/16
+
+  PublicSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.80.10.0/24
+    
+  PublicSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.80.11.0/24    
+
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.80.20.0/24
+
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.80.21.0/24
+    
+  EC2KeyPair:
+    Description: EC2 keyname
+    Type: "AWS::EC2::KeyPair::KeyName"
+
+# naming convention Ref: https://cjrequena.com/2020-06-05/aws-naming-conventions-en
+# EKS setup Ref: https://en.sokube.ch/post/aws-kubernetes-aws-elastic-kubernetes-service-eks-1
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Sub "vpc-${AWS::StackName}"
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Sub "igw-${AWS::StackName}"
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+
+  VPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC     
+      
+
+  #====================================
+  # Subnets
+  #====================================  
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet1CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["subnet", !Select [ 0, !GetAZs '' ], "public", !Ref EnvironmentName, !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+          
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref PublicSubnet2CIDR
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["subnet", !Select [ 1, !GetAZs '' ], "public", !Ref EnvironmentName, !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["subnet", !Select [ 0, !GetAZs '' ], "private", !Ref EnvironmentName, !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["subnet", !Select [ 1, !GetAZs '' ], "private", !Ref EnvironmentName, !Sub "${AWS::StackName}"] ]
+        - Key: EnvironmentName
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+      
+  #====================================
+  # EIP & NAT Gateway
+  #====================================
+  EIP:
+    DependsOn: VPCGatewayAttachment
+    Type: 'AWS::EC2::EIP'
+    Properties:
+      Domain: vpc
+  NatGateway1:
+    Type: 'AWS::EC2::NatGateway'
+    Properties:
+      AllocationId: !GetAtt 'EIP.AllocationId'
+      SubnetId: !Ref PublicSubnet1
+
+
+  #====================================
+  # Route tables
+  #====================================  
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["rtb", !GetAtt PublicSubnet1.AvailabilityZone, "public", !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com      
+
+  DefaultPublicRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet1
+      
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      SubnetId: !Ref PublicSubnet2    
+
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["rtb", !GetAtt PrivateSubnet1.AvailabilityZone, "private", !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+
+  DefaultPrivateRoute:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet1      
+      
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable
+      SubnetId: !Ref PrivateSubnet2
+      
+      
+  #====================================
+  # Security groups
+  #====================================  
+  PublicIngressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join [ "-", ["public-sg", !Sub "${AWS::StackName}"] ]
+      GroupDescription: "Security group with allow port 22 ingress rule"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: '22'
+          ToPort: '22'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '80'
+          ToPort: '80'
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: '443'
+          ToPort: '443'
+          CidrIp: 0.0.0.0/0          
+        - CidrIp: 0.0.0.0/0
+          Description: Ping Access
+          IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1    
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", ["sg-public", !Sub "${AWS::StackName}"] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+
+  # PrivateIngressSecurityGroup:
+    # Type: AWS::EC2::SecurityGroup
+    # Properties:
+      # GroupName: !Join [ "-", ["private-sg", !Sub "${AWS::StackName}"] ]
+      # GroupDescription: "Security group with allow port 22 ingress rule"
+      # VpcId: !Ref VPC
+      # SecurityGroupIngress:
+        # - IpProtocol: tcp
+          # FromPort: '22'
+          # ToPort: '22'
+          # CidrIp: 0.0.0.0/0
+        # - IpProtocol: tcp
+          # FromPort: '80'
+          # ToPort: '80'
+          # CidrIp: 0.0.0.0/0
+        # - IpProtocol: tcp
+          # FromPort: '443'
+          # ToPort: '443'
+          # CidrIp: 0.0.0.0/0          
+        # - CidrIp: 0.0.0.0/0
+          # Description: Ping Access
+          # IpProtocol: icmp
+          # FromPort: -1
+          # ToPort: -1
+      # Tags:
+        # - Key: Name
+          # Value: !Join [ "-", ["sg-private", !Sub "${AWS::StackName}"] ]
+        # - Key: Environment
+          # Value: !Ref EnvironmentName
+        # - Key: createdby
+          # Value: johnchan@swireproperties.com
+          
+  #====================================
+  # EC2
+  #====================================        
+  BastionASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Join ["-", ["bastion-host-asg", !Ref "AWS::StackName"]]
+      LaunchConfigurationName: !Ref BastionLaunchConfig
+      VPCZoneIdentifier:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      MinSize: "1"
+      DesiredCapacity: "1"
+      MaxSize: "1"
+      Tags:
+        - Key: Name
+          Value: !Join ["-", ["ec2-bastion-host", !Ref "AWS::StackName"]]
+          PropagateAtLaunch: true
+        - Key: Environment
+          Value: !Ref EnvironmentName
+          PropagateAtLaunch: true
+        - Key: createdby
+          Value: johnchan@swireproperties.com
+          PropagateAtLaunch: true
+
+  BastionLaunchConfig:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      LaunchConfigurationName: !Join ["-", ["BastionHostLaunchConfiguration", !Ref "AWS::StackName"]]
+      AssociatePublicIpAddress: true
+      ImageId: "ami-0312eb56d82698888"
+      InstanceType: "t3.nano"
+      KeyName: !Ref EC2KeyPair
+      SecurityGroups:
+        - !Ref PublicIngressSecurityGroup
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          cd /tmp
+          yum update -y
+          yum install -y httpd
+          echo "Welcome to jump host" > /var/www/html/index.html
+          sudo -u root service httpd start        
+ 
+  # EC2InstnaceRole:
+    # Type: AWS::IAM::Role
+    # Properties:
+      # AssumeRolePolicyDocument:
+        # Version: "2012-10-17"
+        # Statement:
+        # - Effect: Allow
+          # Principal:
+            # Service:
+            # - ec2.amazonaws.com
+          # Action:
+          # - sts:AssumeRole
+      # # ManagedPolicyArns:
+        # # - arn:aws:iam::aws:policy/service-role/AmazonEC2RoleforSSM          
+      # Path: /
+      
+  # EC2InstanceProfile:
+    # Type: "AWS::IAM::InstanceProfile"
+    # Properties:
+      # Roles:
+        # - !Ref EC2InstnaceRole
+        
+  # PrivateEC2ASG:
+    # Type: AWS::AutoScaling::AutoScalingGroup
+    # Properties:
+      # AutoScalingGroupName: !Join ["-", ["private-ec2-asg", !Ref "AWS::StackName"]]
+      # LaunchConfigurationName: !Ref PrivateEC2LaunchConfig
+      # VPCZoneIdentifier:
+        # - !Ref PrivateSubnet1
+        # - !Ref PrivateSubnet2
+      # MinSize: "1"
+      # DesiredCapacity: "1"
+      # MaxSize: "1"
+      # Tags:
+        # - Key: Name
+          # Value: !Join ["-", ["ec2-private", !Ref "AWS::StackName"]]
+          # PropagateAtLaunch: true
+        # - Key: Environment
+          # Value: !Ref EnvironmentName
+          # PropagateAtLaunch: true
+        # - Key: createdby
+          # Value: johnchan@swireproperties.com
+          # PropagateAtLaunch: true          
+
+  # PrivateEC2LaunchConfig:
+    # Type: AWS::AutoScaling::LaunchConfiguration
+    # Properties:
+      # IamInstanceProfile: !Ref EC2InstanceProfile
+      # LaunchConfigurationName: !Join ["-", ["PrivateEC2LaunchConfiguration", !Ref "AWS::StackName"]]
+      # ImageId: "ami-0312eb56d82698888"
+      # InstanceType: "t3.micro"
+      # KeyName: !Ref EC2KeyPair
+      # SecurityGroups:
+        # - !Ref PrivateIngressSecurityGroup
+
+Outputs:
+  VPC:
+    Description: A reference to the created VPC
+    Value: !Ref VPC
+    Export:
+      Name: !Join [ "-", ["vpc", !Sub "${AWS::StackName}"] ]    
+
+  PublicSubnet1:
+    Description: A reference to the public subnet in the 1st Availability Zone
+    Value: !Ref PublicSubnet1
+    Export:
+      Name: !Join [ "-", ["PublicSubnet1", !Sub "${AWS::StackName}"] ]
+
+  PublicSubnet2:
+    Description: A reference to the public subnet in the 2nd Availability Zone
+    Value: !Ref PublicSubnet2
+    Export:
+      Name: !Join [ "-", ["PublicSubnet2", !Sub "${AWS::StackName}"] ]    
+
+  PrivateSubnet1:
+    Description: A reference to the private subnet in the 1st Availability Zone
+    Value: !Ref PrivateSubnet1
+    Export:
+      Name: !Join [ "-", ["PrivateSubnet1", !Sub "${AWS::StackName}"] ]
+
+  PrivateSubnet2:
+    Description: A reference to the private subnet in the 2nd Availability Zone
+    Value: !Ref PrivateSubnet2
+    Export:
+      Name: !Join [ "-", ["PrivateSubnet2", !Sub "${AWS::StackName}"] ]    
+    
+  PublicSubnet1AZ:
+    Description: A reference to the public subnet in the 1st Availability Zone
+    Value: !GetAtt PublicSubnet1.AvailabilityZone
+    Export:
+      Name: !Join [ "-", ["PublicSubnet1AZ", !Sub "${AWS::StackName}"] ]
+    
+  PrivateSubnet1AZ:
+    Description: A reference to the private subnet in the 1st Availability Zone
+    Value: !GetAtt PrivateSubnet1.AvailabilityZone
+    Export:
+      Name: !Join [ "-", ["PrivateSubnet1AZ", !Sub "${AWS::StackName}"] ]
+      
+  PublicIngressSecurityGroup:
+    Description: A reference to the private subnet in the 1st Availability Zone
+    Value: !Ref PublicIngressSecurityGroup
+    Export:
+      Name: !Join [ "-", ["PublicIngressSecurityGroup", !Sub "${AWS::StackName}"] ]      

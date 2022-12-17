@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: dev
+commonLabels:
+  env: dev
+images:
+  - name: myhk2009/nodetest
+    newName: myhk2009/nodetest
+    newTag: 20221217-dev-54ba9d40cc
+bases:
+  - ../../base
+patchesStrategicMerge:
+  - service-lb.yaml

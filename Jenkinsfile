@@ -1,6 +1,6 @@
 node {
     def app
-    def projectName = ' nodejs-manifest-multibranch'
+    def projectName = 'nodejs-manifest-multibranch'
     def projectBuildPath = "${projectName}/${APPENV}"
     def yamlPath = "manifests/overlays/${APPENV}"
 
@@ -15,6 +15,7 @@ node {
                     sh "git config user.email myhk2009@gmail.com"
                     sh "git config user.name johnchan2016"
                     sh "git checkout ${BRANCHNAME}"
+                    sh "git pull ${BRANCHNAME}"
 										
                     sh """
                     # create new kustomization.yaml

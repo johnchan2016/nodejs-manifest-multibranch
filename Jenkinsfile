@@ -35,7 +35,7 @@ node {
 										
                     sh "git add ."
                     sh "git commit -m 'Done by Jenkins Job changemanifest: $DOCKERTAG'"
-                    sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GIT_USERNAME}/${projectName}.git"
+                    sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GIT_USERNAME}/${projectName}.git HEAD:${BRANCHNAME}"
                 }
             }
         }

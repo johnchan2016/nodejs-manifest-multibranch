@@ -15,7 +15,6 @@ node {
                     sh "git config user.email myhk2009@gmail.com"
                     sh "git config user.name johnchan2016"
                     sh "git fetch origin"
-                    sh "git checkout origin/${BRANCHNAME}"
                     sh "git merge origin/main"
 										
                     sh """

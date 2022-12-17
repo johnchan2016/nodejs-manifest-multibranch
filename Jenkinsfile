@@ -1,6 +1,6 @@
 node {
     def app
-    def projectName = 'nodejs-manifest'
+    def projectName = ' nodejs-manifest-multibranch'
     def projectBuildPath = "${projectName}/${APPENV}"
     def yamlPath = "manifests/overlays/${APPENV}"
 

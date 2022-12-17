@@ -15,7 +15,7 @@ node {
                     sh "git config user.email myhk2009@gmail.com"
                     sh "git config user.name johnchan2016"
                     sh "git checkout ${BRANCHNAME}"
-                    sh "git pull origin/${BRANCHNAME}"
+                    sh "git pull --rebase origin"
 										
                     sh """
                     # create new kustomization.yaml

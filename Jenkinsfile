@@ -14,7 +14,8 @@ node {
                 withCredentials([usernamePassword(credentialsId: 'github', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
                     sh "git config user.email myhk2009@gmail.com"
                     sh "git config user.name johnchan2016"
-                    sh "git checkout ${BRANCHNAME}"
+                    sh "git fetch origin"
+                    sh "git checkout ori${BRANCHNAME}"
                     sh "git merge origin/main"
 										
                     sh """

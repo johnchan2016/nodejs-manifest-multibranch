@@ -15,7 +15,8 @@ node {
                     sh "git config user.email myhk2009@gmail.com"
                     sh "git config user.name johnchan2016"
                     sh "git fetch origin"
-                    sh "git merge origin/main"
+                    sh "git checkout origin/${BRANCHNAME}"
+                    sh "git merge origin/${BRANCHNAME}"
 										
                     sh """
                     # create new kustomization.yaml
@@ -34,7 +35,7 @@ node {
 										
                     sh "git add ."
                     sh "git commit -m 'Done by Jenkins Job changemanifest: $DOCKERTAG'"
-                    sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GIT_USERNAME}/${projectName}.git HEAD"
+                    sh "git push https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/${GIT_USERNAME}/${projectName}.git"
                 }
             }
         }
